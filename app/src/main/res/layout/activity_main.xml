@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="center_horizontal|center_vertical"
+    tools:context="com.example.rtsph264streamplayer.MainActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:ignore="MissingConstraints">
+
+
+        <io.vov.vitamio.widget.VideoView
+            android:id="@+id/surface_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true" />
+
+
+        <ProgressBar
+            android:id="@+id/progressbar"
+            android:layout_centerInParent="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:ignore="MissingConstraints"
+            android:visibility="invisible"/>
+    </RelativeLayout>
+
+
+</android.support.constraint.ConstraintLayout>

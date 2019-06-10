@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">RTSPH264StreamPlayer</string>
+    <string name="rtsp">rtsp://</string>
+    <string name="rtsp_sample">rtsp://192.168.200.162:1935/vod/sample.mp4</string>
+    <string name="str_ok">OK</string>
+    <string name="str_cancel">CANCEL</string>
+</resources>
