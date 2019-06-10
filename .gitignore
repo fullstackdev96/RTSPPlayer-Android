@@ -17,6 +17,8 @@ out/
 .gradle/
 build/
 app/build/
+app/relese/
+vitamio/build/
 
 # Local configuration file (sdk path, etc)
 local.properties
