@@ -15,6 +15,7 @@ out/
 
 # Gradle files
 .gradle/
+.idea/
 build/
 app/build/
 app/relese/
