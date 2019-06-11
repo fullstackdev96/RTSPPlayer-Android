@@ -177,8 +177,28 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         super.onBackPressed();
+        bSleepThread = true;
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         mVideoView.stopPlayback();
         finish();
+    }
+
+    @Override
+    protected  void onStop()
+    {
+        bSleepThread = true;
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        super.onStop();
     }
 
     @Override
@@ -188,6 +208,7 @@ public class MainActivity extends Activity {
 
         super.onStart();
     }
+
 
     @SuppressLint("NewApi")
     @Override
