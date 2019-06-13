@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorBlack"
     android:layout_gravity="center_horizontal|center_vertical"
     tools:context="com.example.rtsph264streamplayer.MainActivity">
 
@@ -21,8 +22,9 @@
 
 
         <ProgressBar
+            android:layout_marginTop="40dp"
             android:id="@+id/progressbar"
-            android:layout_centerInParent="true"
+            android:layout_centerHorizontal="true"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             tools:ignore="MissingConstraints"

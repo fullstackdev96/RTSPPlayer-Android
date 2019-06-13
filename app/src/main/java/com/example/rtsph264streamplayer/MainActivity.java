@@ -29,6 +29,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.rtsph264streamplayer.dialog.CustomDialog;
+import com.example.rtsph264streamplayer.dialog.ListViewDialog;
+import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 import io.vov.vitamio.Vitamio;
 import io.vov.vitamio.MediaPlayer;
@@ -43,7 +49,7 @@ public class MainActivity extends Activity {
 
     public static String TAG = "MainActivity";
     long numpad0Time, numpad1Time ,numpad2Time;
-    static String path;
+    static String path_first, path_second;
     private static VideoView mVideoView;
     private static Context context;
     private Thread mThread;
@@ -62,6 +68,7 @@ public class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_FULLSCREEN
             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
     private int currentApiVersion;
+    Gson gson;
 
 
     @Override
@@ -74,22 +81,24 @@ public class MainActivity extends Activity {
         currentApiVersion = android.os.Build.VERSION.SDK_INT;
         hideNavigationAndStatusbar();
 
-
         context = this;
         sp = PreferenceManager.getDefaultSharedPreferences(context);
 
         setContentView(R.layout.activity_main);
         pb = (ProgressBar) findViewById(R.id.progressbar);
-//        hideProgress();
 
         mVideoView = (VideoView) findViewById(R.id.surface_view);
         dialog = new CustomDialog(MainActivity.this);
 
-        String url = sp.getString("url",null);
-        path = url;
+        String url_first = sp.getString("url_first",null);
+        String url_second = sp.getString("url_second",null);
+
+        path_first = url_first;
+        path_second = url_second;
         mLastChecked = 0;
         bSleepThread = false;
-        if (path == null || path == "") {
+
+        if (path_first == null || path_first == "" || path_second == null || path_second == "") {
             // Tell the user to provide a media file URL/path.
             Toast.makeText(MainActivity.this, "Please enter the RTSP URL/path", Toast.LENGTH_LONG).show();
             dialog.show();
@@ -236,20 +245,20 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        switch (keyCode){
-            case KeyEvent.KEYCODE_1:
-                numpad0Time = System.currentTimeMillis();
-                break;
-            case KeyEvent.KEYCODE_2:
-                numpad1Time = System.currentTimeMillis();
-                break;
-            case KeyEvent.KEYCODE_3:
-                numpad2Time = System.currentTimeMillis();
-                break;
-        }
-
-        checkKeys();
-
+//        switch (keyCode){
+//            case KeyEvent.:
+//                numpad0Time = System.currentTimeMillis();
+//                break;
+//            case KeyEvent.KEYCODE_2:
+//                numpad1Time = System.currentTimeMillis();
+//                break;
+//            case KeyEvent.KEYCODE_3:
+//                numpad2Time = System.currentTimeMillis();
+//                break;
+//        }
+//
+//        checkKeys();
+        dialog.show();
         return true;
     }
 
@@ -266,9 +275,11 @@ public class MainActivity extends Activity {
     public static void startPlay() {
         pb.setVisibility(View.VISIBLE);
         //        ProgressAsyncTask.execute((Runnable) context);
-        String url = sp.getString("url",null);
-        path = url;
-        if (!TextUtils.isEmpty(url) || path != null) {
+        String url_first = sp.getString("url_first",null);
+        path_first = url_first;
+        String url_second = sp.getString("url_second",null);
+        path_second = url_second;
+        if (!TextUtils.isEmpty(url_second) || path_first != null || !TextUtils.isEmpty(url_second) || path_second != null) {
             mVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                 @Override
                 public void onPrepared(MediaPlayer mediaPlayer) {
@@ -295,7 +306,8 @@ public class MainActivity extends Activity {
                         startPlay();
                 }
             });
-            mVideoView.setBufferSize(1024*50);
+            mVideoView.setBufferSize(1024*256);
+            mVideoView.setVideoQuality(16);
             mCurrentPostion = 0 ;
 
             bSleepThread = true;
@@ -306,13 +318,13 @@ public class MainActivity extends Activity {
                 e.printStackTrace();
             }
             mVideoView.stopPlayback();
-            mVideoView.setVideoPath(url);
+            mVideoView.setVideoPath(url_first);
             bSleepThread = false;
         }
     }
 
     public void openVideo() {
-        mVideoView.setVideoPath(path);
+        mVideoView.setVideoPath(path_first);
     }
 
     public void hideNavigationAndStatusbar(){
