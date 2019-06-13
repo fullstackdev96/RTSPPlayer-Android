@@ -153,7 +153,7 @@ public class CustomDialog extends Dialog implements View.OnClickListener {
                     listdlg.type = 1;
                     listdlg.show();
                 }else{
-                    showAlert("No Archieve URLs");
+                    showAlert("No URL Saved!");
                 }
                 break;
             case R.id.btn_second:
@@ -161,7 +161,7 @@ public class CustomDialog extends Dialog implements View.OnClickListener {
                     listdlg.type = 2;
                     listdlg.show();
                 }else{
-                    showAlert("No Archieve URLs");
+                    showAlert("No URL Saved!");
                 }
                 break;
         }

@@ -58,6 +58,8 @@ public class MainActivity extends Activity {
     private long mLastChecked;
     private static long mCurrentPostion;
 
+    private static int index = 1;
+
     static SharedPreferences sp ;
     static ProgressBar pb;
     static CustomDialog dialog;
@@ -162,8 +164,16 @@ public class MainActivity extends Activity {
                                     // things to do on the main thread
                                     mLastChecked = 0;
                                     if (!dialog.isShowing()) {
-                                        sp.edit().putString("url", null).apply();
-                                        dialog.show();
+                                        String msg;
+                                        if(index == 1){
+                                            msg = "connecting with first IP Address...";
+                                        }else{
+                                            msg = "connecting with second IP Address...";
+                                        }
+                                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                                        startPlay();
+//                                        sp.edit().putString("url", null).apply();
+//                                        dialog.show();
                                     }
                                 }
                             });
@@ -306,7 +316,7 @@ public class MainActivity extends Activity {
                         startPlay();
                 }
             });
-            mVideoView.setBufferSize(1024*256);
+            mVideoView.setBufferSize(1024*512);
             mVideoView.setVideoQuality(16);
             mCurrentPostion = 0 ;
 
@@ -318,7 +328,13 @@ public class MainActivity extends Activity {
                 e.printStackTrace();
             }
             mVideoView.stopPlayback();
-            mVideoView.setVideoPath(url_first);
+            if(index == 1){
+                index = 2;
+                mVideoView.setVideoPath(url_first);
+            }else{
+                index = 1;
+                mVideoView.setVideoPath(url_second);
+            }
             bSleepThread = false;
         }
     }
