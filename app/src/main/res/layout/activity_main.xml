@@ -1,25 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/colorBlack"
     android:layout_gravity="center_horizontal|center_vertical"
-    tools:context="com.example.rtsph264streamplayer.MainActivity">
+    tools:context="com.example.rtsph264streamplayer.MainActivity"
+    android:orientation="horizontal">
 
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         tools:ignore="MissingConstraints">
-
-
-        <io.vov.vitamio.widget.VideoView
-            android:id="@+id/surface_view"
+        <FrameLayout
+            android:id="@+id/video_surface_frame"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_centerHorizontal="true"
-            android:layout_centerVertical="true" />
+            android:layout_gravity="center"
+            android:foregroundGravity="clip_horizontal|clip_vertical"
+            tools:ignore="true"
+            android:background="@color/colorAccent">
 
+            <SurfaceView
+                android:id="@+id/video_surface"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+        </FrameLayout>
 
         <ProgressBar
             android:layout_marginTop="40dp"
@@ -32,4 +38,4 @@
     </RelativeLayout>
 
 
-</android.support.constraint.ConstraintLayout>
+</LinearLayout>

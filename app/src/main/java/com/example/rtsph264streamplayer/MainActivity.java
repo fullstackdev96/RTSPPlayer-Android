@@ -1,68 +1,44 @@
 package com.example.rtsph264streamplayer;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.preference.PreferenceManager;
-//import android.support.v7.app.AppCompatActivity;
-
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.SurfaceView;
-import android.view.TextureView;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
-import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.rtsph264streamplayer.dialog.CustomDialog;
-import com.example.rtsph264streamplayer.dialog.ListViewDialog;
 import com.google.gson.Gson;
 
+import org.videolan.libvlc.IVLCVout;
+import org.videolan.libvlc.LibVLC;
+import org.videolan.libvlc.Media;
+import org.videolan.libvlc.MediaPlayer;
+
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 
-import io.vov.vitamio.Vitamio;
-import io.vov.vitamio.MediaPlayer;
-import io.vov.vitamio.utils.Log;
-import io.vov.vitamio.widget.MediaController;
-import io.vov.vitamio.widget.VideoView;
-import io.vov.vitamio.MediaPlayer.OnBufferingUpdateListener;
-import io.vov.vitamio.MediaPlayer.OnInfoListener;
-import io.vov.vitamio.MediaPlayer.OnPreparedListener;
 
-public class MainActivity extends Activity {
-
-    public static String TAG = "MainActivity";
-    long numpad0Time, numpad1Time ,numpad2Time;
-    static String path_first, path_second;
-    private static VideoView mVideoView;
-    private static Context context;
-    private Thread mThread;
-    private static boolean bSleepThread;
-
-    private long mLastChecked;
-    private static long mCurrentPostion;
-
-    private static int index = 1;
+public class MainActivity extends Activity implements IVLCVout.Callback {
 
     static SharedPreferences sp ;
     static ProgressBar pb;
-    static CustomDialog dialog;
+    public Gson gson;
+    private static int index = 1;
+
     final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -70,26 +46,54 @@ public class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_FULLSCREEN
             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
     private int currentApiVersion;
-    Gson gson;
+    public CustomDialog dialog;
 
+    private static final String TAG = "MainActivity";
+    private static final String SAMPLE_URL = "rtsp://192.168.200.162:1935/vod/sample.mp4";
+    //    private static final String SAMPLE_URL1 = "http://192.168.1.203:80/acer.mov";
+    private static final int SURFACE_BEST_FIT = 0;
+    private static final int SURFACE_FIT_HORIZONTAL = 1;
+    private static final int SURFACE_FIT_VERTICAL = 2;
+    private static final int SURFACE_FILL = 3;
+    private static final int SURFACE_16_9 = 4;
+    private static final int SURFACE_4_3 = 5;
+    private static final int SURFACE_ORIGINAL = 6;
+    private static int CURRENT_SIZE = SURFACE_BEST_FIT;
+
+    long numpad0Time, numpad1Time ,numpad2Time;
+    static String path_first, path_second;
+    private static Context context;
+    private Thread mThread;
+    private static boolean bSleepThread;
+    private long mLastChecked;
+    private static float mCurrentPostion;
+
+    private FrameLayout mVideoSurfaceFrame = null;
+    private static SurfaceView mVideoSurface = null;
+
+    private final Handler mHandler = new Handler();
+
+    private static LibVLC mLibVLC = null;
+    private static IVLCVout vlcVout = null;
+    private static MediaPlayer mMediaPlayer = null;
+    private static Media media = null;
+    private int mVideoHeight = 0;
+    private int mVideoWidth = 0;
+    private int mVideoVisibleHeight = 0;
+    private int mVideoVisibleWidth = 0;
+    private int mVideoSarNum = 0;
+    private int mVideoSarDen = 0;
 
     @Override
-    @SuppressLint("NewApi")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (!Vitamio.isInitialized(getApplicationContext()))
-            return;
-
         currentApiVersion = android.os.Build.VERSION.SDK_INT;
         hideNavigationAndStatusbar();
+        setContentView(R.layout.activity_main);
 
         context = this;
         sp = PreferenceManager.getDefaultSharedPreferences(context);
-
-        setContentView(R.layout.activity_main);
         pb = (ProgressBar) findViewById(R.id.progressbar);
-
-        mVideoView = (VideoView) findViewById(R.id.surface_view);
         dialog = new CustomDialog(MainActivity.this);
 
         String url_first = sp.getString("url_first",null);
@@ -100,40 +104,134 @@ public class MainActivity extends Activity {
         mLastChecked = 0;
         bSleepThread = false;
 
+        final ArrayList<String> args = new ArrayList<>();
+        args.add("-vvv");
+        mLibVLC = new LibVLC(this, args);
+        mMediaPlayer = new MediaPlayer(mLibVLC);
+
+        mVideoSurfaceFrame = (FrameLayout) findViewById(R.id.video_surface_frame);
+        mVideoSurface = (SurfaceView) findViewById(R.id.video_surface);
+
+        vlcVout = mMediaPlayer.getVLCVout();
+        vlcVout.setVideoView(mVideoSurface);
+        vlcVout.attachViews();
+
         if (path_first == null || path_first == "" || path_second == null || path_second == "") {
             // Tell the user to provide a media file URL/path.
             Toast.makeText(MainActivity.this, "Please enter the RTSP URL/path", Toast.LENGTH_LONG).show();
             dialog.show();
             return;
-        } else {
-            /*
-             * Alternatively,for streaming media you can use
-             * mVideoView.setVideoURI(Uri.parse(URLstring));
-             */
-            pb.setVisibility(View.VISIBLE);
-            pb.animate();
-            mVideoView.setMediaController(new MediaController(this));
-            mVideoView.setVideoLayout(VideoView.VIDEO_LAYOUT_STRETCH, 0);
-            mVideoView.requestFocus();
-//            mVideoView.setBufferSize(1024*50);
-//            mVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-//                @Override
-//                public void onPrepared(MediaPlayer mediaPlayer) {
-//                    // optional need Vitamio 4.0
-//                    pb.setVisibility(View.INVISIBLE);
-//                    Toast.makeText(context, "Connect success!", Toast.LENGTH_LONG).show();
-//                    mediaPlayer.setPlaybackSpeed(1.0f);
-//                }
-//            });
+        }else{
+            playback();
         }
 
+//        dialog = new CustomDialog(this);
+//        dialog.show();
     }
 
     @Override
-    protected void onResume() {
+    protected void onStart() {
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().getDecorView().setSystemUiVisibility(flags);
-        startPlay();
+
+        playback();
+
+        super.onStart();
+    }
+
+    @Override
+    protected void onRestart() {
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().getDecorView().setSystemUiVisibility(flags);
+        super.onRestart();
+    }
+
+    @Override
+    protected void onStop() {
+        bSleepThread = true;
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        mMediaPlayer.stop();
+        mMediaPlayer.getVLCVout().detachViews();
+        mMediaPlayer.getVLCVout().removeCallback(this);
+
+        super.onStop();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mMediaPlayer.release();
+        mLibVLC.release();
+    }
+
+
+    @SuppressLint("NewApi")
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus)
+    {
+        super.onWindowFocusChanged(hasFocus);
+        if(currentApiVersion >= Build.VERSION_CODES.KITKAT && hasFocus)
+        {
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+        }
+    }
+
+    public void hideNavigationAndStatusbar(){
+        if(currentApiVersion >= Build.VERSION_CODES.KITKAT)
+        {
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+            final View decorView = getWindow().getDecorView();
+            decorView
+                    .setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener()
+                    {
+                        @Override
+                        public void onSystemUiVisibilityChange(int visibility)
+                        {
+                            if((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0)
+                            {
+                                decorView.setSystemUiVisibility(flags);
+                            }
+                        }
+                    });
+        }
+    }
+
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    @Override
+    public void onNewLayout(IVLCVout vlcVout, int width, int height, int visibleWidth, int visibleHeight, int sarNum, int sarDen) {
+        mVideoWidth = width;
+        mVideoHeight = height;
+        mVideoVisibleWidth = visibleWidth;
+        mVideoVisibleHeight = visibleHeight;
+        mVideoSarNum = sarNum;
+        mVideoSarDen = sarDen;
+    }
+
+    @Override
+    public void onSurfacesCreated(IVLCVout vlcVout) {
+        mVideoWidth = mVideoSurface.getWidth();  //Note: we do NOT want to use the entire display!
+        mVideoHeight = mVideoSurface.getHeight();
+        vlcVout.setWindowSize(mVideoWidth, mVideoHeight);
+    }
+
+    @Override
+    public void onSurfacesDestroyed(IVLCVout vlcVout) {
+    }
+
+    //
+    @Override
+    protected void onResume() {
+        super.onResume();
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().getDecorView().setSystemUiVisibility(flags);
+        playback();
         if (mThread != null && mThread.isAlive())
         {
             super.onResume();
@@ -145,15 +243,15 @@ public class MainActivity extends Activity {
             public void run() {
                 try {
                     while(true) {
-                        if (mVideoView != null && !mVideoView.isPlaying() && !mVideoView.isBuffering() && mLastChecked == 0 ) {
+                        if (mMediaPlayer != null && !mMediaPlayer.isPlaying() && mMediaPlayer.isSeekable() && mLastChecked == 0 ) {
                             mLastChecked = System.currentTimeMillis();
-                        }else if (mVideoView != null && mVideoView.isPlaying() && mLastChecked == 0 && mCurrentPostion >= mVideoView.getCurrentPosition()){
+                        }else if (mMediaPlayer != null && mMediaPlayer.isPlaying() && mLastChecked == 0 && mCurrentPostion >= mMediaPlayer.getPosition()){
                             mLastChecked = System.currentTimeMillis();
-                        }else if (mVideoView != null && (mVideoView.isPlaying() || mVideoView.isBuffering()) && mCurrentPostion < mVideoView.getCurrentPosition()) {
+                        }else if (mMediaPlayer != null && (mMediaPlayer.isPlaying() || mMediaPlayer.isSeekable()) && mCurrentPostion < mMediaPlayer.getPosition()) {
                             mLastChecked = 0;
                         }
 
-                        mCurrentPostion = mVideoView.getCurrentPosition();
+                        mCurrentPostion = mMediaPlayer.getPosition();
 
                         Long now = System.currentTimeMillis();
                         if (mLastChecked > 0 && (mLastChecked + 60000) < now )
@@ -171,7 +269,7 @@ public class MainActivity extends Activity {
                                             msg = "connecting with second IP Address...";
                                         }
                                         Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-                                        startPlay();
+                                        playback();
 //                                        sp.edit().putString("url", null).apply();
 //                                        dialog.show();
                                     }
@@ -190,67 +288,6 @@ public class MainActivity extends Activity {
             }
         };
         mThread.start();
-        super.onResume();
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        bSleepThread = true;
-
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        mVideoView.stopPlayback();
-        finish();
-    }
-
-    @Override
-    protected  void onStop()
-    {
-        bSleepThread = true;
-
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        super.onStop();
-    }
-
-    @Override
-    protected void onStart() {
-        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getWindow().getDecorView().setSystemUiVisibility(flags);
-
-        super.onStart();
-    }
-
-
-    @SuppressLint("NewApi")
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus)
-    {
-        super.onWindowFocusChanged(hasFocus);
-        if(currentApiVersion >= Build.VERSION_CODES.KITKAT && hasFocus)
-        {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        }
-    }
-
-    @Override
-    protected void onRestart() {
-        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getWindow().getDecorView().setSystemUiVisibility(flags);
-        super.onRestart();
     }
 
     @Override
@@ -266,9 +303,10 @@ public class MainActivity extends Activity {
 //                numpad2Time = System.currentTimeMillis();
 //                break;
 //        }
-//
-//        checkKeys();
-        dialog.show();
+
+        checkKeys();
+        if(!dialog.isShowing())
+            dialog.show();
         return true;
     }
 
@@ -282,103 +320,131 @@ public class MainActivity extends Activity {
         }
     }
 
-    public static void startPlay() {
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        bSleepThread = true;
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        onStop();
+
+        finish();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    public static void playback(){
         pb.setVisibility(View.VISIBLE);
-        //        ProgressAsyncTask.execute((Runnable) context);
+        pb.animate();
+        mMediaPlayer.getVLCVout().addCallback((IVLCVout.Callback) context);
+
+//        pb.setVisibility(View.VISIBLE);
         String url_first = sp.getString("url_first",null);
         path_first = url_first;
         String url_second = sp.getString("url_second",null);
         path_second = url_second;
+
         if (!TextUtils.isEmpty(url_second) || path_first != null || !TextUtils.isEmpty(url_second) || path_second != null) {
-            mVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                @Override
-                public void onPrepared(MediaPlayer mediaPlayer) {
-                    // optional need Vitamio 4.0
-                    pb.setVisibility(View.INVISIBLE);
-                    pb.animate();
-                    Toast.makeText(context, "Connect success!", Toast.LENGTH_SHORT).show();
-                    mediaPlayer.setPlaybackSpeed(1.0f);
-                }
-            });
-//            mVideoView.seton
-            mVideoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-                @Override
-                public boolean onError(MediaPlayer mp, int what, int extra) {
-                    if (!dialog.isShowing())
-                        startPlay();
-                    return true;
-                }
-            });
-            mVideoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                @Override
-                public void onCompletion(MediaPlayer mp) {
-                    if (!dialog.isShowing())
-                        startPlay();
-                }
-            });
-            mVideoView.setBufferSize(1024*512);
-            mVideoView.setVideoQuality(16);
+//            pb.setVisibility(View.INVISIBLE);
             mCurrentPostion = 0 ;
-
             bSleepThread = true;
-
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            mVideoView.stopPlayback();
+
             if(index == 1){
                 index = 2;
-                mVideoView.setVideoPath(url_first);
+                media = new Media(mLibVLC, Uri.parse(url_first));
+                mMediaPlayer.setMedia(media);
             }else{
                 index = 1;
-                mVideoView.setVideoPath(url_second);
+                media = new Media(mLibVLC, Uri.parse(url_second));
+                mMediaPlayer.setMedia(media);
             }
             bSleepThread = false;
         }
+
+        mMediaPlayer.setEventListener(new MediaPlayer.EventListener() {
+            @Override
+            public void onEvent(MediaPlayer.Event event) {
+                switch (event.type){
+                    case MediaPlayer.Event.Buffering:
+                        Log.d(TAG, "onEvent: Buffering");
+                        break;
+                    case MediaPlayer.Event.EncounteredError:
+                        Log.d(TAG, "onEvent: EncounteredError");
+                        break;
+                    case MediaPlayer.Event.EndReached:
+                        Log.d(TAG, "onEvent: EndReached");
+                        break;
+                    case MediaPlayer.Event.ESAdded:
+                        Log.d(TAG, "onEvent: ESAdded");
+                        break;
+                    case MediaPlayer.Event.ESDeleted:
+                        Log.d(TAG, "onEvent: ESDeleted");
+                        break;  case MediaPlayer.Event.MediaChanged:
+                        Log.d(TAG, "onEvent: MediaChanged");
+                        break;
+                    case MediaPlayer.Event.Opening:
+                        pb.setVisibility(View.INVISIBLE);
+                        Log.d(TAG, "onEvent: Opening");
+                        break;
+                    case MediaPlayer.Event.PausableChanged:
+                        Log.d(TAG, "onEvent: PausableChanged");
+                        break;
+                    case MediaPlayer.Event.Paused:
+                        Log.d(TAG, "onEvent: Paused");
+                        break;
+                    case MediaPlayer.Event.Playing:
+                        Log.d(TAG, "onEvent: Playing");
+                        break;
+                    case MediaPlayer.Event.PositionChanged:
+                        Log.d(TAG, "onEvent: PositionChanged");
+                        break;
+                    case MediaPlayer.Event.SeekableChanged:
+                        Log.d(TAG, "onEvent: SeekableChanged");
+                        break;
+                    case MediaPlayer.Event.Stopped:
+                        Log.d(TAG, "onEvent: Stopped");
+                        break;
+                    case MediaPlayer.Event.TimeChanged:
+                        Log.d(TAG, "onEvent: TimeChanged");
+                        break;
+                    case MediaPlayer.Event.Vout:
+                        Log.d(TAG, "onEvent: Vout");
+                        break;
+                }
+            }
+        });
+
+        media.release();
+        mMediaPlayer.play();
     }
+//
+//    public void startPlay() {
 
-    public void openVideo() {
-        mVideoView.setVideoPath(path_first);
-    }
+//
+//        final IVLCVout vlcVout = mMediaPlayer.getVLCVout();
+//        vlcVout.setVideoView(mVideoSurface);
+//        vlcVout.attachViews();
+//        mMediaPlayer.getVLCVout().addCallback(this);
+//        Media media = new Media(mLibVLC, Uri.parse(SAMPLE_URL));
+//
+//        mMediaPlayer.setMedia(media);
+//        media.release();
+//        mMediaPlayer.play();
+//
 
-    public void hideNavigationAndStatusbar(){
-//        requestWindowFeature(Window.FEATURE_NO_TITLE);
-//        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-//        getWindow().getDecorView().setSystemUiVisibility(flags);
-        if(currentApiVersion >= Build.VERSION_CODES.KITKAT)
-        {
+//    }
 
-            getWindow().getDecorView().setSystemUiVisibility(flags);
-
-            // Code below is to handle presses of Volume up or Volume down.
-            // Without this, after pressing volume buttons, the navigation bar will
-            // show up and won't hide
-            final View decorView = getWindow().getDecorView();
-            decorView
-                    .setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener()
-                    {
-
-                        @Override
-                        public void onSystemUiVisibilityChange(int visibility)
-                        {
-                            if((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0)
-                            {
-                                decorView.setSystemUiVisibility(flags);
-                            }
-                        }
-                    });
-        }
-    }
-
-    public static Dialog alertDialog(String msg){
-        Dialog dialog = new Dialog(context);
-
-        dialog.setContentView(R.layout.dialog_alert);
-        TextView txt_alert = (TextView) dialog.findViewById(R.id.txt_alert);
-        txt_alert.setText(msg);
-        return dialog;
-    }
 
 }

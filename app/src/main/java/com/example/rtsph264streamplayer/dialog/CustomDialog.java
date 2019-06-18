@@ -134,7 +134,7 @@ public class CustomDialog extends Dialog implements View.OnClickListener {
 
                 listdlg.setChangedData(lists);
 
-                MainActivity.startPlay();
+                MainActivity.playback();
                 dismiss();
                 Log.d("Ipaddress_first" , ipaddress_first);
                 Log.d("Ipaddress_second" , ipaddress_second);
