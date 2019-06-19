@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,15 +7,15 @@
     android:layout_gravity="center_horizontal|center_vertical"
     tools:context="com.example.rtsph264streamplayer.MainActivity"
     android:orientation="horizontal">
-
-    <RelativeLayout
+    <LinearLayout
+        android:orientation="horizontal"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:ignore="MissingConstraints">
+        android:layout_height="match_parent">
+
         <FrameLayout
             android:id="@+id/video_surface_frame"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
             android:layout_gravity="center"
             android:foregroundGravity="clip_horizontal|clip_vertical"
             tools:ignore="true"
@@ -27,15 +27,15 @@
                 android:layout_height="match_parent"/>
         </FrameLayout>
 
-        <ProgressBar
-            android:layout_marginTop="40dp"
-            android:id="@+id/progressbar"
-            android:layout_centerHorizontal="true"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            tools:ignore="MissingConstraints"
-            android:visibility="invisible"/>
-    </RelativeLayout>
+    </LinearLayout>
+
+    <ProgressBar
+        android:layout_marginTop="40dp"
+        android:id="@+id/progressbar"
+        android:layout_centerHorizontal="true"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:ignore="MissingConstraints"/>
 
 
-</LinearLayout>
+</RelativeLayout>

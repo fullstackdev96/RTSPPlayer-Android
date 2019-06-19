@@ -65,10 +65,10 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
     private static Context context;
     private Thread mThread;
     private static boolean bSleepThread;
-    private long mLastChecked;
-    private static float mCurrentPostion;
+    private static long mLastChecked;
+    private static long mCurrentPostion;
 
-    private FrameLayout mVideoSurfaceFrame = null;
+    private static FrameLayout mVideoSurfaceFrame = null;
     private static SurfaceView mVideoSurface = null;
 
     private final Handler mHandler = new Handler();
@@ -106,6 +106,11 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
         final ArrayList<String> args = new ArrayList<>();
         args.add("-vvv");
+        args.add("--no-drop-late-frames");
+        args.add("--no-skip-frames");
+        args.add("--network-caching=2000");
+        args.add("--loop");
+        args.add("--http-reconnect");
         mLibVLC = new LibVLC(this, args);
         mMediaPlayer = new MediaPlayer(mLibVLC);
 
@@ -129,15 +134,15 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 //        dialog.show();
     }
 
-    @Override
-    protected void onStart() {
-        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getWindow().getDecorView().setSystemUiVisibility(flags);
-
-        playback();
-
-        super.onStart();
-    }
+//    @Override
+//    protected void onStart() {
+//        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+//        getWindow().getDecorView().setSystemUiVisibility(flags);
+//
+//
+//
+//        super.onStart();
+//    }
 
     @Override
     protected void onRestart() {
@@ -148,6 +153,8 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
     @Override
     protected void onStop() {
+        super.onStop();
+
         bSleepThread = true;
 
         try {
@@ -157,15 +164,15 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
         }
 
         mMediaPlayer.stop();
-        mMediaPlayer.getVLCVout().detachViews();
-        mMediaPlayer.getVLCVout().removeCallback(this);
-
-        super.onStop();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+
+        mMediaPlayer.stop();
+        mMediaPlayer.getVLCVout().detachViews();
+        mMediaPlayer.getVLCVout().removeCallback(this);
         mMediaPlayer.release();
         mLibVLC.release();
     }
@@ -243,15 +250,15 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             public void run() {
                 try {
                     while(true) {
-                        if (mMediaPlayer != null && !mMediaPlayer.isPlaying() && mMediaPlayer.isSeekable() && mLastChecked == 0 ) {
+                        if (mMediaPlayer != null && !mMediaPlayer.isPlaying() && mLastChecked == 0 ) {
                             mLastChecked = System.currentTimeMillis();
-                        }else if (mMediaPlayer != null && mMediaPlayer.isPlaying() && mLastChecked == 0 && mCurrentPostion >= mMediaPlayer.getPosition()){
+                        }else if (mMediaPlayer != null && mMediaPlayer.isPlaying() && mLastChecked == 0 && mCurrentPostion >= mMediaPlayer.getTime()){
                             mLastChecked = System.currentTimeMillis();
-                        }else if (mMediaPlayer != null && (mMediaPlayer.isPlaying() || mMediaPlayer.isSeekable()) && mCurrentPostion < mMediaPlayer.getPosition()) {
+                        }else if (mMediaPlayer != null && mMediaPlayer.isPlaying() && mCurrentPostion < mMediaPlayer.getTime()) {
                             mLastChecked = 0;
                         }
 
-                        mCurrentPostion = mMediaPlayer.getPosition();
+                        mCurrentPostion = mMediaPlayer.getTime();
 
                         Long now = System.currentTimeMillis();
                         if (mLastChecked > 0 && (mLastChecked + 60000) < now )
@@ -264,14 +271,12 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                                     if (!dialog.isShowing()) {
                                         String msg;
                                         if(index == 1){
-                                            msg = "connecting with first IP Address...";
+                                            msg = "connecting with primary IP Address...";
                                         }else{
-                                            msg = "connecting with second IP Address...";
+                                            msg = "connecting with secondary IP Address...";
                                         }
                                         Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
                                         playback();
-//                                        sp.edit().putString("url", null).apply();
-//                                        dialog.show();
                                     }
                                 }
                             });
@@ -322,7 +327,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
     @Override
     public void onBackPressed() {
-        super.onBackPressed();
         bSleepThread = true;
 
         try {
@@ -330,7 +334,9 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        onStop();
+        mMediaPlayer.stop();
+        mMediaPlayer.getVLCVout().detachViews();
+        mMediaPlayer.getVLCVout().removeCallback(this);
 
         finish();
     }
@@ -338,12 +344,30 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
     @Override
     protected void onPause() {
         super.onPause();
+
+        bSleepThread = true;
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+//        onStop();
+        mMediaPlayer.stop();
+        vlcVout.detachViews();
     }
 
     public static void playback(){
         pb.setVisibility(View.VISIBLE);
-        pb.animate();
+//        mVideoSurfaceFrame.setVisibility(View.INVISIBLE);
+//        mVideoSurface.setVisibility(View.INVISIBLE);
         mMediaPlayer.getVLCVout().addCallback((IVLCVout.Callback) context);
+
+        vlcVout = mMediaPlayer.getVLCVout();
+        if (!vlcVout.areViewsAttached()) {
+            vlcVout.setVideoView(mVideoSurface);
+            vlcVout.attachViews();
+        }
 
 //        pb.setVisibility(View.VISIBLE);
         String url_first = sp.getString("url_first",null);
@@ -354,6 +378,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
         if (!TextUtils.isEmpty(url_second) || path_first != null || !TextUtils.isEmpty(url_second) || path_second != null) {
 //            pb.setVisibility(View.INVISIBLE);
             mCurrentPostion = 0 ;
+            mLastChecked = 0 ;
             bSleepThread = true;
             try {
                 Thread.sleep(100);
@@ -371,80 +396,70 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                 mMediaPlayer.setMedia(media);
             }
             bSleepThread = false;
+
+            mMediaPlayer.setEventListener(new MediaPlayer.EventListener() {
+                @Override
+                public void onEvent(MediaPlayer.Event event) {
+                    switch (event.type){
+                        case MediaPlayer.Event.Buffering:
+//                            pb.setVisibility(View.VISIBLE);
+                            Log.d(TAG, "onEvent: Buffering");
+                            break;
+                        case MediaPlayer.Event.EncounteredError:
+                            Log.d(TAG, "onEvent: EncounteredError");
+                            break;
+                        case MediaPlayer.Event.EndReached:
+                            Log.d(TAG, "onEvent: EndReached");
+                            break;
+                        case MediaPlayer.Event.ESAdded:
+                            Log.d(TAG, "onEvent: ESAdded");
+                            break;
+                        case MediaPlayer.Event.ESDeleted:
+                            Log.d(TAG, "onEvent: ESDeleted");
+                            break;
+                        case MediaPlayer.Event.MediaChanged:
+                            Log.d(TAG, "onEvent: MediaChanged");
+                            break;
+                        case MediaPlayer.Event.Opening:
+//                            pb.setVisibility(View.INVISIBLE);
+//                            Toast.makeText(context, "Connect Success!", Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "onEvent: Opening");
+                            break;
+                        case MediaPlayer.Event.PausableChanged:
+                            Log.d(TAG, "onEvent: PausableChanged");
+                            break;
+                        case MediaPlayer.Event.Paused:
+//                            pb.setVisibility(View.VISIBLE);
+                            Log.d(TAG, "onEvent: Paused");
+                            break;
+                        case MediaPlayer.Event.Playing:
+                            Toast.makeText(context, "Connect Success!", Toast.LENGTH_LONG).show();
+                            pb.setVisibility(View.INVISIBLE);
+                            Log.d(TAG, "onEvent: Playing");
+                            break;
+                        case MediaPlayer.Event.PositionChanged:
+                            Log.d(TAG, "onEvent: PositionChanged");
+                            break;
+                        case MediaPlayer.Event.SeekableChanged:
+                            Log.d(TAG, "onEvent: SeekableChanged");
+                            break;
+                        case MediaPlayer.Event.Stopped:
+                            pb.setVisibility(View.VISIBLE);
+                            Log.d(TAG, "onEvent: Stopped");
+                            break;
+                        case MediaPlayer.Event.TimeChanged:
+                            Log.d(TAG, "onEvent: TimeChanged");
+                            break;
+                        case MediaPlayer.Event.Vout:
+                            Log.d(TAG, "onEvent: Vout");
+                            break;
+                    }
+                }
+            });
+
+            media.release();
+            mMediaPlayer.play();
         }
 
-        mMediaPlayer.setEventListener(new MediaPlayer.EventListener() {
-            @Override
-            public void onEvent(MediaPlayer.Event event) {
-                switch (event.type){
-                    case MediaPlayer.Event.Buffering:
-                        Log.d(TAG, "onEvent: Buffering");
-                        break;
-                    case MediaPlayer.Event.EncounteredError:
-                        Log.d(TAG, "onEvent: EncounteredError");
-                        break;
-                    case MediaPlayer.Event.EndReached:
-                        Log.d(TAG, "onEvent: EndReached");
-                        break;
-                    case MediaPlayer.Event.ESAdded:
-                        Log.d(TAG, "onEvent: ESAdded");
-                        break;
-                    case MediaPlayer.Event.ESDeleted:
-                        Log.d(TAG, "onEvent: ESDeleted");
-                        break;  case MediaPlayer.Event.MediaChanged:
-                        Log.d(TAG, "onEvent: MediaChanged");
-                        break;
-                    case MediaPlayer.Event.Opening:
-                        pb.setVisibility(View.INVISIBLE);
-                        Log.d(TAG, "onEvent: Opening");
-                        break;
-                    case MediaPlayer.Event.PausableChanged:
-                        Log.d(TAG, "onEvent: PausableChanged");
-                        break;
-                    case MediaPlayer.Event.Paused:
-                        Log.d(TAG, "onEvent: Paused");
-                        break;
-                    case MediaPlayer.Event.Playing:
-                        Log.d(TAG, "onEvent: Playing");
-                        break;
-                    case MediaPlayer.Event.PositionChanged:
-                        Log.d(TAG, "onEvent: PositionChanged");
-                        break;
-                    case MediaPlayer.Event.SeekableChanged:
-                        Log.d(TAG, "onEvent: SeekableChanged");
-                        break;
-                    case MediaPlayer.Event.Stopped:
-                        Log.d(TAG, "onEvent: Stopped");
-                        break;
-                    case MediaPlayer.Event.TimeChanged:
-                        Log.d(TAG, "onEvent: TimeChanged");
-                        break;
-                    case MediaPlayer.Event.Vout:
-                        Log.d(TAG, "onEvent: Vout");
-                        break;
-                }
-            }
-        });
-
-        media.release();
-        mMediaPlayer.play();
     }
-//
-//    public void startPlay() {
-
-//
-//        final IVLCVout vlcVout = mMediaPlayer.getVLCVout();
-//        vlcVout.setVideoView(mVideoSurface);
-//        vlcVout.attachViews();
-//        mMediaPlayer.getVLCVout().addCallback(this);
-//        Media media = new Media(mLibVLC, Uri.parse(SAMPLE_URL));
-//
-//        mMediaPlayer.setMedia(media);
-//        media.release();
-//        mMediaPlayer.play();
-//
-
-//    }
-
-
 }
