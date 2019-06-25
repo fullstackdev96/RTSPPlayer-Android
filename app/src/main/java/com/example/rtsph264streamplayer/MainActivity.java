@@ -1,3 +1,4 @@
+
 package com.example.rtsph264streamplayer;
 
 import android.annotation.SuppressLint;
@@ -46,7 +47,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             | View.SYSTEM_UI_FLAG_FULLSCREEN
             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
     private int currentApiVersion;
-    public CustomDialog dialog;
+    public static CustomDialog dialog;
 
     private static final String TAG = "MainActivity";
     private static final String SAMPLE_URL = "rtsp://192.168.200.162:1935/vod/sample.mp4";
@@ -83,6 +84,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
     private int mVideoVisibleWidth = 0;
     private int mVideoSarNum = 0;
     private int mVideoSarDen = 0;
+    private static int mReconnectCnt = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -250,10 +252,13 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             public void run() {
                 try {
                     while(true) {
+
                         if (mMediaPlayer != null && !mMediaPlayer.isPlaying() && mLastChecked == 0 ) {
                             mLastChecked = System.currentTimeMillis();
+                            continue;
                         }else if (mMediaPlayer != null && mMediaPlayer.isPlaying() && mLastChecked == 0 && mCurrentPostion >= mMediaPlayer.getTime()){
                             mLastChecked = System.currentTimeMillis();
+                            continue;
                         }else if (mMediaPlayer != null && mMediaPlayer.isPlaying() && mCurrentPostion < mMediaPlayer.getTime()) {
                             mLastChecked = 0;
                         }
@@ -261,6 +266,37 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                         mCurrentPostion = mMediaPlayer.getTime();
 
                         Long now = System.currentTimeMillis();
+
+//                        if (mLastChecked > 0 && (mLastChecked + 60000) < now )
+//                        {
+//                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+//                                @Override
+//                                public void run() {
+//                                    // things to do on the main thread
+//                                    mLastChecked = 0;
+//                                    if (!dialog.isShowing()) {
+//                                        if (mReconnectCnt > 2 )
+//                                        {
+//                                            mReconnectCnt = 0;
+//                                          String msg;
+//                                    if(index == 1){
+//                                        msg = "connecting with primary IP Address...";
+//                                    }else{
+//                                        msg = "connecting with secondary IP Address...";
+//                                    }
+//                                    Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+//                                    playback();
+//                                        }
+//                                        else{
+//                                            mReconnectCnt++;
+//                                            index = (index + 1) % 2;
+//                                            playback();
+//                                        }
+//                                    }
+//                                }
+//                            });
+//                        }
+
                         if (mLastChecked > 0 && (mLastChecked + 60000) < now )
                         {
                             new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -292,7 +328,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                 }
             }
         };
-        mThread.start();
+//        mThread.start();
     }
 
     @Override
@@ -377,8 +413,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
         if (!TextUtils.isEmpty(url_second) || path_first != null || !TextUtils.isEmpty(url_second) || path_second != null) {
 //            pb.setVisibility(View.INVISIBLE);
-            mCurrentPostion = 0 ;
-            mLastChecked = 0 ;
             bSleepThread = true;
             try {
                 Thread.sleep(100);
@@ -400,7 +434,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             mMediaPlayer.setEventListener(new MediaPlayer.EventListener() {
                 @Override
                 public void onEvent(MediaPlayer.Event event) {
-                    switch (event.type){
+                    switch (event.type) {
                         case MediaPlayer.Event.Buffering:
 //                            pb.setVisibility(View.VISIBLE);
                             Log.d(TAG, "onEvent: Buffering");
@@ -433,6 +467,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                             Log.d(TAG, "onEvent: Paused");
                             break;
                         case MediaPlayer.Event.Playing:
+                            mReconnectCnt = 0;
                             Toast.makeText(context, "Connect Success!", Toast.LENGTH_LONG).show();
                             pb.setVisibility(View.INVISIBLE);
                             Log.d(TAG, "onEvent: Playing");
@@ -444,6 +479,27 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                             Log.d(TAG, "onEvent: SeekableChanged");
                             break;
                         case MediaPlayer.Event.Stopped:
+                            if (mLastChecked == 0){
+                                mLastChecked = System.currentTimeMillis();
+                            }
+                            if(mLastChecked + 60000 < System.currentTimeMillis()) {
+                                mLastChecked = 0;
+                            }
+                            if (mLastChecked != 0 && mLastChecked + 60000 > System.currentTimeMillis()){
+                                index = (index + 1) % 2;
+                            }
+
+                            if (!dialog.isShowing()) {
+                                String msg;
+                                if(index == 1){
+                                    msg = "connecting with primary IP Address...";
+                                }else{
+                                    msg = "connecting with secondary IP Address...";
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+                            }
+
+                            playback();
                             pb.setVisibility(View.VISIBLE);
                             Log.d(TAG, "onEvent: Stopped");
                             break;

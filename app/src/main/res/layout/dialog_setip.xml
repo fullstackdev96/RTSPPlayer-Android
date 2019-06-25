@@ -23,7 +23,7 @@
                 android:paddingLeft="20dp"
                 android:paddingRight="20dp"
                 android:hint="Enter first IP Address"
-                android:text= "@string/rtsp_sample"/>
+                android:text= "@string/rtsp_url"/>
 
             <Button
                 android:id="@+id/btn_first"
@@ -47,7 +47,7 @@
                 android:paddingLeft="20dp"
                 android:paddingRight="20dp"
                 android:hint="Enter second IP Address"
-                android:text= "@string/rtsp_sample"/>
+                android:text= "@string/rtsp_url"/>
 
             <Button
                 android:id="@+id/btn_second"
