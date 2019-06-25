@@ -82,6 +82,17 @@ public class CustomDialog extends Dialog implements View.OnClickListener {
         Window window = this.getWindow();
         WindowManager.LayoutParams wlp = window.getAttributes();
 
+        String url_first = sp.getString("url_first",null);
+        String url_second = sp.getString("url_second",null);
+
+        if(url_first != null && !url_first.isEmpty()){
+            edit_first.setText(url_first);
+        }
+
+        if(url_second != null && !url_second.isEmpty()){
+            edit_second.setText(url_second);
+        }
+
         wlp.gravity = Gravity.TOP;
         wlp.flags &= ~WindowManager.LayoutParams.FLAG_DIM_BEHIND;
         window.setAttributes(wlp);
