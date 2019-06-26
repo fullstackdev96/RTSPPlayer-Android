@@ -38,7 +38,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
     static SharedPreferences sp ;
     static ProgressBar pb;
     public Gson gson;
-    private static int index = 1;
+    public static int index = 0;
 
     final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -50,8 +50,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
     public static CustomDialog dialog;
 
     private static final String TAG = "MainActivity";
-    private static final String SAMPLE_URL = "rtsp://192.168.200.162:1935/vod/sample.mp4";
-    //    private static final String SAMPLE_URL1 = "http://192.168.1.203:80/acer.mov";
     private static final int SURFACE_BEST_FIT = 0;
     private static final int SURFACE_FIT_HORIZONTAL = 1;
     private static final int SURFACE_FIT_VERTICAL = 2;
@@ -66,6 +64,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
     private static Context context;
     private Thread mThread;
     private static boolean bSleepThread;
+    private static boolean bStop;
     private static long mLastChecked;
     private static long mCurrentPostion;
 
@@ -106,20 +105,17 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
         mLastChecked = 0;
         bSleepThread = false;
 
+        bStop = false;
+
         final ArrayList<String> args = new ArrayList<>();
         args.add("-vvv");
-        args.add("--no-drop-late-frames");
-        args.add("--no-skip-frames");
-        args.add("--network-caching=2000");
-        args.add("--loop");
-        args.add("--http-reconnect");
+        args.add("--network-caching=1000");
         mLibVLC = new LibVLC(this, args);
         mMediaPlayer = new MediaPlayer(mLibVLC);
 
         mVideoSurfaceFrame = (FrameLayout) findViewById(R.id.video_surface_frame);
         mVideoSurface = (SurfaceView) findViewById(R.id.video_surface);
-
-        vlcVout = mMediaPlayer.getVLCVout();
+                vlcVout = mMediaPlayer.getVLCVout();
         vlcVout.setVideoView(mVideoSurface);
         vlcVout.attachViews();
 
@@ -128,23 +124,8 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             Toast.makeText(MainActivity.this, "Please enter the RTSP URL/path", Toast.LENGTH_LONG).show();
             dialog.show();
             return;
-        }else{
-            playback();
         }
-
-//        dialog = new CustomDialog(this);
-//        dialog.show();
     }
-
-//    @Override
-//    protected void onStart() {
-//        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-//        getWindow().getDecorView().setSystemUiVisibility(flags);
-//
-//
-//
-//        super.onStart();
-//    }
 
     @Override
     protected void onRestart() {
@@ -158,7 +139,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
         super.onStop();
 
         bSleepThread = true;
-
+        bStop = true;
         try {
             Thread.sleep(100);
         } catch (InterruptedException e) {
@@ -240,6 +221,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
         super.onResume();
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().getDecorView().setSystemUiVisibility(flags);
+        bStop = false;
         playback();
         if (mThread != null && mThread.isAlive())
         {
@@ -266,36 +248,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                         mCurrentPostion = mMediaPlayer.getTime();
 
                         Long now = System.currentTimeMillis();
-
-//                        if (mLastChecked > 0 && (mLastChecked + 60000) < now )
-//                        {
-//                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-//                                @Override
-//                                public void run() {
-//                                    // things to do on the main thread
-//                                    mLastChecked = 0;
-//                                    if (!dialog.isShowing()) {
-//                                        if (mReconnectCnt > 2 )
-//                                        {
-//                                            mReconnectCnt = 0;
-//                                          String msg;
-//                                    if(index == 1){
-//                                        msg = "connecting with primary IP Address...";
-//                                    }else{
-//                                        msg = "connecting with secondary IP Address...";
-//                                    }
-//                                    Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-//                                    playback();
-//                                        }
-//                                        else{
-//                                            mReconnectCnt++;
-//                                            index = (index + 1) % 2;
-//                                            playback();
-//                                        }
-//                                    }
-//                                }
-//                            });
-//                        }
 
                         if (mLastChecked > 0 && (mLastChecked + 60000) < now )
                         {
@@ -333,18 +285,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-//        switch (keyCode){
-//            case KeyEvent.:
-//                numpad0Time = System.currentTimeMillis();
-//                break;
-//            case KeyEvent.KEYCODE_2:
-//                numpad1Time = System.currentTimeMillis();
-//                break;
-//            case KeyEvent.KEYCODE_3:
-//                numpad2Time = System.currentTimeMillis();
-//                break;
-//        }
-
         checkKeys();
         if(!dialog.isShowing())
             dialog.show();
@@ -389,14 +329,15 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             e.printStackTrace();
         }
 //        onStop();
+        if(media != null){
+            media.release();
+        }
         mMediaPlayer.stop();
         vlcVout.detachViews();
     }
 
     public static void playback(){
         pb.setVisibility(View.VISIBLE);
-//        mVideoSurfaceFrame.setVisibility(View.INVISIBLE);
-//        mVideoSurface.setVisibility(View.INVISIBLE);
         mMediaPlayer.getVLCVout().addCallback((IVLCVout.Callback) context);
 
         vlcVout = mMediaPlayer.getVLCVout();
@@ -405,14 +346,20 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             vlcVout.attachViews();
         }
 
-//        pb.setVisibility(View.VISIBLE);
+        if(media != null){
+            media.release();
+        }
+
+        if(mMediaPlayer.isPlaying()){
+            mMediaPlayer.stop();
+        }
+
         String url_first = sp.getString("url_first",null);
         path_first = url_first;
         String url_second = sp.getString("url_second",null);
         path_second = url_second;
 
         if (!TextUtils.isEmpty(url_second) || path_first != null || !TextUtils.isEmpty(url_second) || path_second != null) {
-//            pb.setVisibility(View.INVISIBLE);
             bSleepThread = true;
             try {
                 Thread.sleep(100);
@@ -420,12 +367,10 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                 e.printStackTrace();
             }
 
-            if(index == 1){
-                index = 2;
+            if(index == 0){
                 media = new Media(mLibVLC, Uri.parse(url_first));
                 mMediaPlayer.setMedia(media);
             }else{
-                index = 1;
                 media = new Media(mLibVLC, Uri.parse(url_second));
                 mMediaPlayer.setMedia(media);
             }
@@ -436,7 +381,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                 public void onEvent(MediaPlayer.Event event) {
                     switch (event.type) {
                         case MediaPlayer.Event.Buffering:
-//                            pb.setVisibility(View.VISIBLE);
                             Log.d(TAG, "onEvent: Buffering");
                             break;
                         case MediaPlayer.Event.EncounteredError:
@@ -455,20 +399,19 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                             Log.d(TAG, "onEvent: MediaChanged");
                             break;
                         case MediaPlayer.Event.Opening:
-//                            pb.setVisibility(View.INVISIBLE);
-//                            Toast.makeText(context, "Connect Success!", Toast.LENGTH_SHORT).show();
                             Log.d(TAG, "onEvent: Opening");
                             break;
                         case MediaPlayer.Event.PausableChanged:
                             Log.d(TAG, "onEvent: PausableChanged");
                             break;
                         case MediaPlayer.Event.Paused:
-//                            pb.setVisibility(View.VISIBLE);
                             Log.d(TAG, "onEvent: Paused");
                             break;
                         case MediaPlayer.Event.Playing:
                             mReconnectCnt = 0;
-                            Toast.makeText(context, "Connect Success!", Toast.LENGTH_LONG).show();
+                            if(!bStop){
+                                Toast.makeText(context, "Connect Success!", Toast.LENGTH_LONG).show();
+                            }
                             pb.setVisibility(View.INVISIBLE);
                             Log.d(TAG, "onEvent: Playing");
                             break;
@@ -482,21 +425,21 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                             if (mLastChecked == 0){
                                 mLastChecked = System.currentTimeMillis();
                             }
-                            if(mLastChecked + 60000 < System.currentTimeMillis()) {
+                            if(mLastChecked != 0 && mLastChecked + 60000 < System.currentTimeMillis()) {
                                 mLastChecked = 0;
-                            }
-                            if (mLastChecked != 0 && mLastChecked + 60000 > System.currentTimeMillis()){
                                 index = (index + 1) % 2;
-                            }
+                                if (!dialog.isShowing()) {
+                                    String msg;
+                                    if(index == 0){
+                                        msg = "connecting with primary IP Address...";
+                                    }else{
+                                        msg = "connecting with secondary IP Address...";
+                                    }
 
-                            if (!dialog.isShowing()) {
-                                String msg;
-                                if(index == 1){
-                                    msg = "connecting with primary IP Address...";
-                                }else{
-                                    msg = "connecting with secondary IP Address...";
+                                    if(!bStop){
+                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show();
+                                    }
                                 }
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
                             }
 
                             playback();
@@ -512,8 +455,6 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
                     }
                 }
             });
-
-            media.release();
             mMediaPlayer.play();
         }
 
