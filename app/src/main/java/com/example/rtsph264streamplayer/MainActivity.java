@@ -109,7 +109,11 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
         final ArrayList<String> args = new ArrayList<>();
         args.add("-vvv");
-        args.add("--network-caching=1000");
+        args.add("--no-drop-late-frames");
+        args.add("--no-skip-frames");
+        args.add("--network-caching=2000");
+        args.add("--loop");
+        args.add("--http-reconnect");
         mLibVLC = new LibVLC(this, args);
         mMediaPlayer = new MediaPlayer(mLibVLC);
 
@@ -369,11 +373,11 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
 
             if(index == 0){
                 media = new Media(mLibVLC, Uri.parse(url_first));
-                mMediaPlayer.setMedia(media);
             }else{
                 media = new Media(mLibVLC, Uri.parse(url_second));
-                mMediaPlayer.setMedia(media);
             }
+            media.setHWDecoderEnabled(false, true);
+            mMediaPlayer.setMedia(media);
             bSleepThread = false;
 
             mMediaPlayer.setEventListener(new MediaPlayer.EventListener() {
