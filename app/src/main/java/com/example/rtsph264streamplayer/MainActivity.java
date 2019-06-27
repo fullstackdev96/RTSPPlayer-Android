@@ -376,7 +376,7 @@ public class MainActivity extends Activity implements IVLCVout.Callback {
             }else{
                 media = new Media(mLibVLC, Uri.parse(url_second));
             }
-            media.setHWDecoderEnabled(false, true);
+            media.setHWDecoderEnabled(true, true);
             mMediaPlayer.setMedia(media);
             bSleepThread = false;
 
