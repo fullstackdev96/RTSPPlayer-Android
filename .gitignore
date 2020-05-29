@@ -15,8 +15,11 @@ out/
 
 # Gradle files
 .gradle/
+.idea/
 build/
 app/build/
+app/release/
+vitamio/build/
 
 # Local configuration file (sdk path, etc)
 local.properties
